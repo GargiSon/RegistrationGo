@@ -8,21 +8,28 @@ import (
 )
 
 func RenderTemplate(w http.ResponseWriter, temp string) {
-	t, err := template.ParseFiles(filepath.Join("templates", temp))
-	if err != nil {
-		http.Error(w, "Template rendering error", http.StatusInternalServerError)
-		fmt.Println("RenderTemplate error: ", err)
-		return
-	}
-	t.Execute(w, nil)
+	RenderTemplateWithData(w, temp, nil)
 }
 
 func RenderTemplateWithData(w http.ResponseWriter, temp string, data any) {
-	t, err := template.ParseFiles(filepath.Join("templates", temp))
+	tmplFiles := []string{
+		filepath.Join("templates", "base.html"),
+		filepath.Join("templates", "header.html"),
+		filepath.Join("templates", "footer.html"),
+		filepath.Join("templates", temp), // e.g. home.html or about.html
+	}
+
+	t, err := template.ParseFiles(tmplFiles...)
 	if err != nil {
 		http.Error(w, "Template rendering error", http.StatusInternalServerError)
-		fmt.Println(err)
+		fmt.Println("RenderTemplateWithData error:", err)
 		return
 	}
-	t.Execute(w, data)
+
+	// Always execute the base layout
+	err = t.ExecuteTemplate(w, "base.html", data)
+	if err != nil {
+		http.Error(w, "Template execution error", http.StatusInternalServerError)
+		fmt.Println("Template execution error:", err)
+	}
 }
