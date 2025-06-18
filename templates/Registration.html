@@ -26,7 +26,7 @@
         text-align: left;
         padding-top: 20px;
       }
-      .register {
+      .register { 
         background-color: rgb(200, 245, 219);
       }
       .required-star {
@@ -64,7 +64,7 @@
     {{if .Error}}
       <p style="color:red;">{{.Error}}</p>
     {{end}}
-    <form action="/" method="POST">
+    <form action="/register" method="POST">
       <table>
         <tr>
           <td><label for="username">Enter your name <span class="required-star">*</span></label></td>
@@ -136,7 +136,7 @@
 
         <tr>
           <td colspan="2" class="full-row">
-            <input type="submit" name="submit" value="Register" class="register" />
+            <input type="submit" name="submit" value="Add User" class="register" />
             <a href="/home"><button type="button" class="cancel">Cancel</button></a>
           </td>
         </tr>
