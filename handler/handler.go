@@ -4,7 +4,9 @@ import (
 	"database/sql"
 	"mysqliteapp/render"
 	"net/http"
+	"regexp"
 	"strings"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 	_ "modernc.org/sqlite"
@@ -28,6 +30,8 @@ type EditPageData struct {
 	User      User
 	Countries []string
 	SportsMap map[string]bool
+	Error     string
+	Title     string
 }
 
 func init() {
@@ -78,13 +82,6 @@ func init() {
 	}
 }
 
-func renderError(w http.ResponseWriter, errMsg string, status int) {
-	w.WriteHeader(status)
-	render.RenderTemplateWithData(w, "error.html", map[string]any{
-		"ErrorMessage": errMsg,
-	})
-}
-
 func getCountriesFromDB() ([]string, error) {
 	rows, err := db.Query("SELECT name FROM Countries")
 	if err != nil {
@@ -104,6 +101,14 @@ func getCountriesFromDB() ([]string, error) {
 }
 
 func RegisterHandler(w http.ResponseWriter, r *http.Request) {
+	countries, err := getCountriesFromDB()
+	if err != nil {
+		render.RenderTemplateWithData(w, "Registration.html", map[string]any{
+			"Error": "Error fetching countries: " + err.Error(),
+		})
+		return
+	}
+
 	if r.Method == http.MethodPost {
 		username := r.FormValue("username")
 		password := r.FormValue("password")
@@ -113,48 +118,70 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		address := r.FormValue("address")
 		gender := r.FormValue("gender")
 		sports := r.Form["sports"] //Slice
-		dob := r.FormValue("dob")
+		dobStr := r.FormValue("dob")
 		country := r.FormValue("country")
 
-		// sports := "" //string
-		// if len(sportslice) > 0 {
-		// 	sports = strings.Join(sportslice, ",") //Join differet values using a comma
-		// }
 		joinedSports := strings.Join(sports, ",")
 
+		//Same password
 		if password != confirm {
-			renderError(w, "Passwords do not match", http.StatusInternalServerError)
+			render.RenderTemplateWithData(w, "Registration.html", map[string]any{
+				"Error":     "Passwords do not match",
+				"Countries": countries,
+			})
 			return
 		}
 
+		//First changing dob from string to time format, then checking
+		dob, err := time.Parse("2006-01-02", dobStr)
+		if err != nil || dob.After(time.Now()) {
+			render.RenderTemplateWithData(w, "Registration.html", map[string]any{
+				"Error":     "Invalid or future DOB",
+				"Countries": countries,
+			})
+			return
+		}
+		//Mobile number constraint
+		match, err := regexp.MatchString(`^(\+\d{1,3})?\d{10}$`, mobile)
+		if err != nil || !match {
+			render.RenderTemplateWithData(w, "Registration.html", map[string]any{
+				"Error":     "Invalid mobile number format",
+				"Countries": countries,
+			})
+			return
+		}
+
+		//Hash password
 		hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost) //securely hash users password, default cost value is 10, but values like12, 14 are more secure but slow, and hashed password is in slice byte format
 		if err != nil {
-			renderError(w, "Error hashing Passwords"+err.Error(), http.StatusInternalServerError)
+			render.RenderTemplateWithData(w, "Registration.html", map[string]any{
+				"Error":     "Password hashing failed",
+				"Countries": countries,
+			})
 			return
 		}
 
-		_, err = db.Exec("INSERT INTO New(username, password, email, mobile, address, gender, sports, dob, country) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", username, hashed, email, mobile, address, gender, joinedSports, dob, country)
+		_, err = db.Exec("INSERT INTO New(username, password, email, mobile, address, gender, sports, dob, country) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", username, hashed, email, match, address, gender, joinedSports, dob, country)
 
 		if err != nil {
-			renderError(w, "Database error"+err.Error(), http.StatusInternalServerError)
+			render.RenderTemplateWithData(w, "Registration.html", map[string]any{
+				"Error":     "Database error: " + err.Error(),
+				"Countries": countries,
+			})
 			return
 		}
 		http.Redirect(w, r, "/home", http.StatusSeeOther)
 		return
 	}
-
-	countries, err := getCountriesFromDB()
-	if err != nil {
-		renderError(w, "Error fetching countries: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	render.RenderTemplateWithData(w, "Registration.html", map[string]any{"Countries": countries})
+	render.RenderTemplateWithData(w, "Registration.html", map[string]any{
+		"Countries": countries,
+	})
 }
 
 func HomeHandler(w http.ResponseWriter, r *http.Request) {
 	rows, err := db.Query("SELECT id, username, email, mobile FROM New")
 	if err != nil {
-		renderError(w, "Error fetching users"+err.Error(), http.StatusInternalServerError)
+		render.RenderTemplateWithData(w, "Home.html", map[string]any{"Error": "Error fetching users"})
 		return
 	}
 	defer rows.Close()
@@ -163,7 +190,7 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var u User
 		if err := rows.Scan(&u.ID, &u.Username, &u.Email, &u.Mobile); err != nil {
-			renderError(w, "Error scanning user"+err.Error(), http.StatusInternalServerError)
+			render.RenderTemplateWithData(w, "Home.html", map[string]any{"Error": "Error scanning user"})
 			return
 		}
 		users = append(users, u)
@@ -174,25 +201,21 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 func EditHandler(w http.ResponseWriter, r *http.Request) {
 	id := r.FormValue("id")
 	if id == "" {
-		renderError(w, "Missing user ID", http.StatusInternalServerError)
+		render.RenderTemplateWithData(w, "Home.html", map[string]any{"Error": "Missing user ID"})
 		return
 	}
-
-	row := db.QueryRow("SELECT id, username, email, mobile, address, gender, sports, dob, country FROM New WHERE id = ?", id)
 
 	var user User
-	err := row.Scan(&user.ID, &user.Username, &user.Email, &user.Mobile, &user.Address, &user.Gender, &user.Sports, &user.DOB, &user.Country)
+	err := db.QueryRow("SELECT id, username, email, mobile, address, gender, sports, dob, country FROM New WHERE id = ?", id).
+		Scan(&user.ID, &user.Username, &user.Email, &user.Mobile, &user.Address, &user.Gender, &user.Sports, &user.DOB, &user.Country)
+
 	if err != nil {
-		renderError(w, "User not found"+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	countries, err := getCountriesFromDB()
-	if err != nil {
-		renderError(w, "Error fetching countries"+err.Error(), http.StatusInternalServerError)
+		render.RenderTemplateWithData(w, "Home.html", map[string]any{"Error": "User not found"})
 		return
 	}
 
-	// Convert sports (comma-separated string) to map for checkbox logic
+	countries, _ := getCountriesFromDB()
+
 	sportsMap := make(map[string]bool)
 	for _, sport := range strings.Split(user.Sports, ",") {
 		sport = strings.TrimSpace(sport)
@@ -201,10 +224,11 @@ func EditHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	render.RenderTemplateWithData(w, "Edit.html", map[string]any{
-		"User":      user,
-		"Countries": countries,
-		"SportsMap": sportsMap,
+	render.RenderTemplateWithData(w, "Edit.html", EditPageData{
+		Title:     "Edit User",
+		User:      user,
+		Countries: countries,
+		SportsMap: sportsMap,
 	})
 }
 
@@ -215,16 +239,30 @@ func UpdateHandler(w http.ResponseWriter, r *http.Request) {
 		mobile := r.FormValue("mobile")
 		address := r.FormValue("address")
 		gender := r.FormValue("gender")
-		dob := r.FormValue("dob")
+		dobStr := r.FormValue("dob")
 		country := r.FormValue("country")
 		sportsSlice := r.Form["sports"]
 
 		sports := strings.Join(sportsSlice, ",")
 
-		_, err := db.Exec(`UPDATE New SET username=?, mobile=?, address=?, gender=?, sports=?, dob=?, country=? WHERE id=?`,
+		// Validate mobile format
+		match, err := regexp.MatchString(`^(\+\d{1,3})?\d{10}$`, mobile)
+		if err != nil || !match {
+			render.RenderTemplateWithData(w, "Home.html", map[string]any{"Error": "Invalid mobile format"})
+			return
+		}
+
+		//First changing dob from string to time format
+		dob, err := time.Parse("2006-01-02", dobStr)
+		if err != nil || dob.After(time.Now()) {
+			render.RenderTemplateWithData(w, "Home.html", map[string]any{"Error": "Invalid DOB"})
+			return
+		}
+
+		_, err = db.Exec(`UPDATE New SET username=?, mobile=?, address=?, gender=?, sports=?, dob=?, country=? WHERE id=?`,
 			username, mobile, address, gender, sports, dob, country, id)
 		if err != nil {
-			renderError(w, "Updation Failed"+err.Error(), http.StatusInternalServerError)
+			render.RenderTemplateWithData(w, "Home.html", map[string]any{"Error": "Update failed: " + err.Error()})
 			return
 		}
 		http.Redirect(w, r, "/home", http.StatusSeeOther)
@@ -236,7 +274,7 @@ func DeleteHandler(w http.ResponseWriter, r *http.Request) {
 		id := r.FormValue("id")
 		_, err := db.Exec("DELETE FROM New WHERE id = ?", id)
 		if err != nil {
-			renderError(w, "Error deleting user: "+err.Error(), http.StatusInternalServerError)
+			render.RenderTemplateWithData(w, "Home.html", map[string]any{"Error": "Error deleting user"})
 			return
 		}
 		http.Redirect(w, r, "/home", http.StatusSeeOther)

@@ -7,8 +7,8 @@ import (
 )
 
 func main() {
-	http.HandleFunc("/", handler.RegisterHandler)
-	http.HandleFunc("/home", handler.HomeHandler)
+	http.HandleFunc("/register", handler.RegisterHandler)
+	http.HandleFunc("/", handler.HomeHandler)
 	http.HandleFunc("/edit", handler.EditHandler)
 	http.HandleFunc("/update", handler.UpdateHandler)
 	http.HandleFunc("/delete", handler.DeleteHandler)
