@@ -33,37 +33,36 @@
   </head>
   <body>
     <h2>Add New User</h2>
-
     <form action="/" method="POST">
       <table>
         <tr>
           <td><label for="username">Enter your name</label></td>
-          <td><input type="text" name="username" placeholder="Enter your name"/></td>
+          <td><input type="text" name="username" placeholder="Enter your name" required/></td>
         </tr>
 
         <tr>
           <td><label for="password">Create password</label></td>
-          <td><input type="password" name="password" placeholder="Create password"/></td>
+          <td><input type="password" name="password" placeholder="Create password" required/></td>
         </tr>
 
         <tr>
           <td><label for="confirm">Confirm password</label></td>
-          <td><input type="password" name="confirm" placeholder="Confirm password"/></td>
+          <td><input type="password" name="confirm" placeholder="Confirm password" required/></td>
         </tr>
 
         <tr>
           <td><label for="email">Enter your email</label></td>
-          <td><input type="email" name="email" placeholder="Enter your mail" /></td>
+          <td><input type="email" name="email" placeholder="Enter your mail" required/></td>
         </tr>
 
         <tr>
           <td><label for="mobile">Enter your mobile</label></td>
-          <td><input type="tel" name="mobile" placeholder="Enter your mobile number" /></td>
+          <td><input type="tel" name="mobile" placeholder="Enter your mobile number" required/></td>
         </tr>
 
         <tr>
           <td><label for="address">Enter your address</label></td>
-          <td><textarea rows="4" cols="30" placeholder="Enter your address"></textarea></td>
+          <td><textarea rows="4" cols="30" placeholder="Enter your address" required></textarea></td>
         </tr>
 
         <tr>
@@ -89,12 +88,12 @@
         </tr>
 
         <tr>
-          <td><label for="dob">Select your Date of Birth</label></td>
+          <td><label for="dob" required>Select your Date of Birth</label></td>
           <td><input type="date" name="dob" /></td>
         </tr>
 
         <tr>
-          <td><label for="country">Select your country</label></td>
+          <td><label for="country" required>Select your country</label></td>
           <td>
             <select name="country">
               <option value="">... Select your country...</option>

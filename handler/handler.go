@@ -78,6 +78,13 @@ func init() {
 	}
 }
 
+func renderError(w http.ResponseWriter, errMsg string, status int) {
+	w.WriteHeader(status)
+	render.RenderTemplateWithData(w, "error.html", map[string]any{
+		"ErrorMessage": errMsg,
+	})
+}
+
 func getCountriesFromDB() ([]string, error) {
 	rows, err := db.Query("SELECT name FROM Countries")
 	if err != nil {
@@ -116,20 +123,20 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		joinedSports := strings.Join(sports, ",")
 
 		if password != confirm {
-			http.Error(w, "Passwords do not match", http.StatusBadRequest)
+			renderError(w, "Passwords do not match", http.StatusInternalServerError)
 			return
 		}
 
 		hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost) //securely hash users password, default cost value is 10, but values like12, 14 are more secure but slow, and hashed password is in slice byte format
 		if err != nil {
-			http.Error(w, "Error hashing password", http.StatusInternalServerError)
+			renderError(w, "Error hashing Passwords"+err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		_, err = db.Exec("INSERT INTO New(username, password, email, mobile, address, gender, sports, dob, country) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", username, hashed, email, mobile, address, gender, joinedSports, dob, country)
 
 		if err != nil {
-			http.Error(w, "Database error"+err.Error(), http.StatusInternalServerError)
+			renderError(w, "Database error"+err.Error(), http.StatusInternalServerError)
 			return
 		}
 		http.Redirect(w, r, "/home", http.StatusSeeOther)
@@ -138,7 +145,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 	countries, err := getCountriesFromDB()
 	if err != nil {
-		http.Error(w, "Error fetching countries: "+err.Error(), http.StatusInternalServerError)
+		renderError(w, "Error fetching countries: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	render.RenderTemplateWithData(w, "Registration.html", map[string]any{"Countries": countries})
@@ -147,7 +154,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 func HomeHandler(w http.ResponseWriter, r *http.Request) {
 	rows, err := db.Query("SELECT id, username, email, mobile FROM New")
 	if err != nil {
-		http.Error(w, "Error fetching users: "+err.Error(), http.StatusInternalServerError)
+		renderError(w, "Error fetching users"+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
@@ -156,7 +163,7 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var u User
 		if err := rows.Scan(&u.ID, &u.Username, &u.Email, &u.Mobile); err != nil {
-			http.Error(w, "Error scanning user: "+err.Error(), http.StatusInternalServerError)
+			renderError(w, "Error scanning user"+err.Error(), http.StatusInternalServerError)
 			return
 		}
 		users = append(users, u)
@@ -167,7 +174,7 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 func EditHandler(w http.ResponseWriter, r *http.Request) {
 	id := r.FormValue("id")
 	if id == "" {
-		http.Error(w, "Missing user ID", http.StatusBadRequest)
+		renderError(w, "Missing user ID", http.StatusInternalServerError)
 		return
 	}
 
@@ -176,12 +183,12 @@ func EditHandler(w http.ResponseWriter, r *http.Request) {
 	var user User
 	err := row.Scan(&user.ID, &user.Username, &user.Email, &user.Mobile, &user.Address, &user.Gender, &user.Sports, &user.DOB, &user.Country)
 	if err != nil {
-		http.Error(w, "User not found: "+err.Error(), http.StatusInternalServerError)
+		renderError(w, "User not found"+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	countries, err := getCountriesFromDB()
 	if err != nil {
-		http.Error(w, "Error fetching countries: "+err.Error(), http.StatusInternalServerError)
+		renderError(w, "Error fetching countries"+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -217,7 +224,7 @@ func UpdateHandler(w http.ResponseWriter, r *http.Request) {
 		_, err := db.Exec(`UPDATE New SET username=?, mobile=?, address=?, gender=?, sports=?, dob=?, country=? WHERE id=?`,
 			username, mobile, address, gender, sports, dob, country, id)
 		if err != nil {
-			http.Error(w, "Updation Failed: "+err.Error(), http.StatusInternalServerError)
+			renderError(w, "Updation Failed"+err.Error(), http.StatusInternalServerError)
 			return
 		}
 		http.Redirect(w, r, "/home", http.StatusSeeOther)
@@ -229,7 +236,7 @@ func DeleteHandler(w http.ResponseWriter, r *http.Request) {
 		id := r.FormValue("id")
 		_, err := db.Exec("DELETE FROM New WHERE id = ?", id)
 		if err != nil {
-			http.Error(w, "Error deleting user: "+err.Error(), http.StatusInternalServerError)
+			renderError(w, "Error deleting user: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 		http.Redirect(w, r, "/home", http.StatusSeeOther)

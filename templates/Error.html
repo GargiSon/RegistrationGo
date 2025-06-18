@@ -1,0 +1,47 @@
+{{define "content"}}
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Error</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f9f9f9;
+      padding: 50px;
+    }
+    .error-box {
+      max-width: 400px;
+      margin: auto;
+      background: #ffe6e6;
+      border: 1px solid #ff4d4d;
+      color: #990000;
+      padding: 20px;
+      border-radius: 8px;
+      position: relative;
+    }
+    .close-btn {
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      text-decoration: none;
+      color: #990000;
+      font-weight: bold;
+      font-size: 20px;
+    }
+    .close-btn:hover {
+      color: black;
+    }
+    h2 {
+      margin-top: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="error-box">
+    <a class="close-btn" href="/home">&times;</a>
+    <h2>Error</h2>
+    <p>{{.ErrorMessage}}</p>
+  </div>
+</body>
+</html>
+{{end}}
