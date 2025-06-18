@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Registered Users</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 10px;
+        }
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            background-color: #f9f9f9;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        input[type="submit"], button {
+            padding: 6px 12px;
+            margin-right: 5px;
+            cursor: pointer;
+        }
+        .edit{
+            background-color: rgb(200, 245, 219);
+        }
+        .delete{
+            background-color: rgb(233, 147, 147);
+        }
+    </style>
+</head>
+<body>
+    <h2>All Registered Users</h2>
+    <a href="/register"><button>Add New User</button></a>
+
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>Username</th>
+            <th>Email</th>
+            <th>Mobile</th>
+            <th>Actions</th>
+        </tr> 
+        {{range .Users}}
+        <tr>
+            <td>{{.ID}}</td>
+            <td>{{.Username}}</td> 
+            <td>{{.Email}}</td>
+            <td>{{.Mobile}}</td>
+            <td>
+                <form action="/edit" method="POST" style="display:inline">
+                    <input type="hidden" name="id" value="{{.ID}}">
+                    <input type="submit" value="Edit" class="edit">
+                </form>
+                <form action="/delete" method="POST" style="display:inline">
+                    <input type="hidden" name="id" value="{{.ID}}">
+                    <input type="submit" value="Delete" class="delete" onclick="return confirm('Are you sure?');">
+                </form>
+            </td>
+        </tr>
+        {{end}}
+    </table>
+</body>
+</html>

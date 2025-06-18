@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Edit User</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        label { display: inline-block; width: 100px; margin-top: 10px; }
+        input, select { padding: 6px; width: 250px; }
+        .cancel{ padding: 6px; width: 250px; background-color: rgb(233, 147, 147); }
+        .form-group { margin-bottom: 10px; }
+        .update{ background-color: rgb(200, 245, 219); }
+    </style>
+</head>
+
+<body>
+    <h2>Edit User</h2>
+    <form action="/update" method="POST">
+        <input type="hidden" name="id" value="{{.User.ID}}">
+
+        <div class="form-group">
+            <label>Name:</label>
+            <input type="text" name="username" value="{{.User.Username}}" required>
+        </div>
+
+        <div class="form-group">
+            <label>Mobile:</label>
+            <input type="text" name="mobile" value="{{.User.Mobile}}" required>
+        </div>
+
+        <div class="form-group">
+            <label>Address:</label>
+            <input type="text" name="address" value="{{.User.Address}}" required>
+        </div>
+
+        <div class="form-group">
+            <label>Gender:</label><br>
+            <input type="radio" name="gender" value="male" {{if eq .User.Gender "male" }} checked{{end}}> Male
+            <input type="radio" name="gender" value="female" {{if eq .User.Gender "female" }} checked{{end}}> Female
+        </div>
+
+        <div class="form-group">
+            <label>Sports:</label><br>
+            <input type="checkbox" name="sports" value="cricket" {{if index .SportsMap "cricket" }}checked{{end}}> Cricket<br>
+            <input type="checkbox" name="sports" value="swimming" {{if index .SportsMap "swimming" }}checked{{end}}> Swimming<br>
+            <input type="checkbox" name="sports" value="basketball" {{if index .SportsMap "basketball" }}checked{{end}}> Basketball
+        </div>
+
+        <div class="form-group">
+            <label>DOB:</label>
+            <input type="date" name="dob" value="{{.User.DOB}}" required>
+        </div>
+
+        <div class="form-group">
+            <label>Country:</label>
+            <select name="country" required>
+                {{range .Countries}}
+                    <option value="{{.}}" {{if eq $.User.Country .}}selected{{end}}>{{.}}</option>
+                {{end}}
+            </select>
+        </div>
+
+        <br>
+        <input type="submit" value="Update" class="update">
+        <a href="/home"><button type="button" class="cancel">Cancel</button></a>
+    </form>
+</body>
+</html>
