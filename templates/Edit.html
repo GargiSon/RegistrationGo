@@ -66,23 +66,23 @@
 
         <table>
             <tr>
-            <td><label for="username">Enter your name </label></td>
+            <td><label for="username">Edit your name </label></td>
             <td><input type="text" name="username" value="{{.User.Username}}" required /></td>
             </tr>
 
             <tr>
-            <td><label for="email">Enter your email </label></td>
+            <td><label for="email">Edit your email </label></td>
             <td><input type="email" name="email" value="{{.User.Email}}" required /></td>
             </tr>
 
             <tr>
-            <td><label for="mobile">Enter your mobile </label></td>
+            <td><label for="mobile">Edit your mobile </label></td>
             <td><input type="tel" name="mobile" value="{{.User.Mobile}}" required /></td>
             </tr>
 
             <tr>
-            <td><label for="address">Enter your address </label></td>
-            <td><textarea name="address" rows="4" cols="30" value="{{.User.Address}}" required></textarea></td>
+            <td><label for="address">Edit your address </label></td>
+            <td><textarea name="address" rows="4" cols="30" required>{{.User.Address}} </textarea></td>
             </tr>
 
             <tr>
@@ -125,7 +125,7 @@
 
             <tr>
             <td colspan="2" class="full-row">
-                <input type="submit" name="submit" value="Add User" class="register" />
+                <input type="submit" name="submit" value="Edit User" class="register" />
                 <a href="/home"><button type="button" class="cancel">Cancel</button></a>
             </td>
             </tr>

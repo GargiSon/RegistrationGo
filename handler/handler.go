@@ -173,8 +173,9 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/home", http.StatusSeeOther)
 		return
 	}
-	render.RenderTemplateWithData(w, "Registration.html", map[string]any{
-		"Countries": countries,
+	render.RenderTemplateWithData(w, "Registration.html", EditPageData{
+		Countries: countries,
+		Title:     "Add User",
 	})
 }
 
@@ -222,6 +223,11 @@ func EditHandler(w http.ResponseWriter, r *http.Request) {
 		if sport != "" {
 			sportsMap[sport] = true
 		}
+	}
+
+	// Fix date
+	if len(user.DOB) > 10 {
+		user.DOB = user.DOB[:10]
 	}
 
 	render.RenderTemplateWithData(w, "Edit.html", EditPageData{
