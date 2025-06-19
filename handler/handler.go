@@ -2,6 +2,7 @@ package handler
 
 import (
 	"database/sql"
+	"log"
 	"mysqliteapp/render"
 	"net/http"
 	"regexp"
@@ -42,7 +43,7 @@ func init() {
 	var err error
 	db, err = sql.Open("sqlite", "./New.db") //driver name, datasource name
 	if err != nil {
-		panic(err)
+		log.Println("Error")
 	}
 
 	createTable := `
@@ -66,22 +67,22 @@ func init() {
 	)`
 
 	if _, err = db.Exec(createTable); err != nil { //returns res, err but res not used here
-		panic(err) //this stops the program immediately, when an error occurs
+		log.Println("Error") //this stops the program immediately, when an error occurs
 	}
 
 	if _, err = db.Exec(createCountryTable); err != nil {
-		panic(err)
+		log.Println("Error")
 	}
 
 	var count int
 	if err := db.QueryRow("SELECT COUNT(*) FROM Countries").Scan(&count); err != nil {
-		panic(err)
+		log.Println("Error")
 	}
 
 	if count == 0 {
 		_, err = db.Exec(`INSERT INTO Countries (name) VALUES ('INDIA'),('AFGHANISTHAN'),('FRANCE')`)
 		if err != nil {
-			panic(err)
+			log.Println("Error")
 		}
 	}
 }
@@ -190,8 +191,17 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		_, err = db.Exec("INSERT INTO New(username, password, email, mobile, address, gender, sports, dob, country) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", username, hashed, email, mobile, address, gender, joinedSports, dob, country)
 
 		if err != nil {
+			errMsg := err.Error()
+			userMessage := "Registration failed. Please try again."
+
+			// Customize user-friendly messages
+			if strings.Contains(errMsg, "UNIQUE constraint failed: New.email") {
+				userMessage = "Email already used, try a different one."
+			} else if strings.Contains(errMsg, "UNIQUE constraint failed: New.mobile") {
+				userMessage = "Mobile number already registered."
+			}
 			render.RenderTemplateWithData(w, "Registration.html", EditPageData{
-				Error:     "Database error: " + err.Error(),
+				Error:     userMessage,
 				Countries: countries,
 			})
 			return

@@ -1,8 +1,8 @@
 package render
 
 import (
-	"fmt"
 	"html/template"
+	"log"
 	"net/http"
 	"path/filepath"
 )
@@ -33,15 +33,15 @@ func RenderTemplateWithData(w http.ResponseWriter, temp string, data any) {
 
 	t, err := template.New("base.html").Funcs(funcMap).ParseFiles(tmplFiles...)
 	if err != nil {
-		http.Error(w, "Template rendering error", http.StatusInternalServerError)
-		fmt.Println("RenderTemplateWithData error:", err)
+		log.Println("DB error:", err) // Log real error for devs
+		http.Error(w, "Something went wrong. Please try again.", http.StatusInternalServerError)
 		return
 	}
 
 	// Always execute the base layout
 	err = t.ExecuteTemplate(w, "base.html", data)
 	if err != nil {
-		http.Error(w, "Template execution error", http.StatusInternalServerError)
-		fmt.Println("Template execution error:", err)
+		log.Println("DB error:", err) // Log real error for devs
+		http.Error(w, "Something went wrong. Please try again.", http.StatusInternalServerError)
 	}
 }
