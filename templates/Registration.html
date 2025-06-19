@@ -26,13 +26,12 @@
         text-align: left;
         padding-top: 20px;
       }
-      .register { 
+      .register {
         background-color: rgb(200, 245, 219);
       }
       .required-star {
         color: red;
       }
-
       .inline-options {
         display: flex;
         gap: 20px;
@@ -44,7 +43,6 @@
         gap: 5px;
         white-space: nowrap;
       }
-
       .inline-options input {
         width: auto;
       }
@@ -56,7 +54,6 @@
         border: 2px solid #000000;
         cursor: pointer;
       }
-
     </style>
   </head>
   <body>
@@ -68,7 +65,7 @@
       <table>
         <tr>
           <td><label for="username">Enter your name <span class="required-star">*</span></label></td>
-          <td><input type="text" name="username" placeholder="Enter your name" required /></td>
+          <td><input type="text" name="username" placeholder="Enter your name" value="{{.User.Username}}" required /></td>
         </tr>
 
         <tr>
@@ -83,25 +80,27 @@
 
         <tr>
           <td><label for="email">Enter your email <span class="required-star">*</span></label></td>
-          <td><input type="email" name="email" placeholder="Enter your mail" required /></td>
+          <td><input type="email" name="email" placeholder="Enter your mail" value="{{.User.Email}}" required /></td>
         </tr>
 
         <tr>
           <td><label for="mobile">Enter your mobile <span class="required-star">*</span></label></td>
-          <td><input type="tel" name="mobile" placeholder="Enter your mobile number" required /></td>
+          <td><input type="tel" name="mobile" placeholder="Enter your mobile number" value="{{.User.Mobile}}" required /></td>
         </tr>
 
         <tr>
           <td><label for="address">Enter your address <span class="required-star">*</span></label></td>
-          <td><textarea name="address" rows="4" cols="30" placeholder="Enter your address" required></textarea></td>
+          <td>
+            <textarea name="address" rows="4" cols="30" placeholder="Enter your address" required>{{.User.Address}}</textarea>
+          </td>
         </tr>
 
         <tr>
           <td><label>Select your gender <span class="required-star">*</span></label></td>
           <td>
             <div class="inline-options">
-              <label><input type="radio" name="gender" value="male" required /> Male</label>
-              <label><input type="radio" name="gender" value="female" /> Female</label>
+              <label><input type="radio" name="gender" value="male" {{if eq .User.Gender "male"}}checked{{end}} required /> Male</label>
+              <label><input type="radio" name="gender" value="female" {{if eq .User.Gender "female"}}checked{{end}} /> Female</label>
             </div>
           </td>
         </tr>
@@ -110,16 +109,16 @@
           <td><label>Select sports you love</label></td>
           <td>
             <div class="inline-options">
-              <label><input type="checkbox" name="sports" value="basketball" /> Basket Ball</label>
-              <label><input type="checkbox" name="sports" value="swimming" /> Swimming</label>
-              <label><input type="checkbox" name="sports" value="cricket" /> Cricket</label>
+              <label><input type="checkbox" name="sports" value="basketball" {{if index .SportsMap "basketball"}}checked{{end}} /> Basket Ball</label>
+              <label><input type="checkbox" name="sports" value="swimming" {{if index .SportsMap "swimming"}}checked{{end}} /> Swimming</label>
+              <label><input type="checkbox" name="sports" value="cricket" {{if index .SportsMap "cricket"}}checked{{end}} /> Cricket</label>
             </div>
           </td>
         </tr>
 
         <tr>
           <td><label for="dob">Select your Date of Birth <span class="required-star">*</span></label></td>
-          <td><input type="date" name="dob" required /></td>
+          <td><input type="date" name="dob" value="{{.User.DOB}}" required /></td>
         </tr>
 
         <tr>
@@ -128,7 +127,7 @@
             <select name="country">
               <option value="">... Select your country...</option>
               {{range .Countries}}
-              <option value="{{.}}">{{.}}</option>
+                <option value="{{.}}" {{if eq $.User.Country .}}selected{{end}}>{{.}}</option>
               {{end}}
             </select>
           </td>

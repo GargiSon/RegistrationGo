@@ -150,11 +150,29 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 		joinedSports := strings.Join(sports, ",")
 
+		user := User{
+			Username: username,
+			Email:    email,
+			Mobile:   mobile,
+			Address:  address,
+			Gender:   gender,
+			Sports:   joinedSports,
+			DOB:      dobStr,
+			Country:  country,
+		}
+
+		sportsMap := make(map[string]bool)
+		for _, s := range sports {
+			sportsMap[s] = true
+		}
+
 		//Same password
 		if password != confirm {
 			render.RenderTemplateWithData(w, "Registration.html", EditPageData{
 				Error:     "Passwords do not match",
 				Countries: countries,
+				User:      user,
+				SportsMap: sportsMap,
 			})
 			return
 		}
@@ -165,6 +183,8 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 			render.RenderTemplateWithData(w, "Registration.html", EditPageData{
 				Error:     "Invalid or future DOB",
 				Countries: countries,
+				User:      user,
+				SportsMap: sportsMap,
 			})
 			return
 		}
@@ -174,6 +194,8 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 			render.RenderTemplateWithData(w, "Registration.html", EditPageData{
 				Error:     "Invalid mobile number format",
 				Countries: countries,
+				User:      user,
+				SportsMap: sportsMap,
 			})
 			return
 		}
@@ -184,6 +206,8 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 			render.RenderTemplateWithData(w, "Registration.html", EditPageData{
 				Error:     "Password hashing failed",
 				Countries: countries,
+				User:      user,
+				SportsMap: sportsMap,
 			})
 			return
 		}
@@ -203,6 +227,8 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 			render.RenderTemplateWithData(w, "Registration.html", EditPageData{
 				Error:     userMessage,
 				Countries: countries,
+				User:      user,
+				SportsMap: sportsMap,
 			})
 			return
 		}
