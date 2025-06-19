@@ -33,6 +33,23 @@
         .delete{
             background-color: rgb(233, 147, 147);
         }
+        .pagination {
+            margin-top: 20px;
+            margin-left: 40rem;
+            margin-bottom: 20px;
+        }
+        .pagination a {
+            padding: 6px 12px;
+            margin-right: 5px;
+            background-color: #eee;
+            text-decoration: none;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .pagination a.active {
+            background-color: #7aaee6;
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -70,6 +87,22 @@
         </tr>
         {{end}}
     </table>
+
+    {{if gt .TotalPages 1}}
+    <div class="pagination">
+        {{if gt .Page 1}}
+        <a href="/home?page={{sub .Page 1}}">Previous</a>
+        {{end}}
+
+        {{range $i := seq 1 .TotalPages}}
+        <a href="/home?page={{$i}}" class="{{if eq $.Page $i}}active{{end}}">{{$i}}</a>
+        {{end}}
+
+        {{if lt .Page .TotalPages}}
+        <a href="/home?page={{add .Page 1}}">Next</a>
+        {{end}}
+    </div>
+    {{end}}
 </body>
 </html>
 {{end}}

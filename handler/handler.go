@@ -5,6 +5,7 @@ import (
 	"mysqliteapp/render"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -27,11 +28,14 @@ type User struct {
 }
 
 type EditPageData struct {
-	User      User
-	Countries []string
-	SportsMap map[string]bool
-	Error     string
-	Title     string
+	User       User
+	Countries  []string
+	SportsMap  map[string]bool
+	Error      string
+	Title      string
+	Users      []User
+	Page       int
+	TotalPages int
 }
 
 func init() {
@@ -180,7 +184,15 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func HomeHandler(w http.ResponseWriter, r *http.Request) {
-	rows, err := db.Query("SELECT id, username, email, mobile FROM New")
+	const limit = 5
+	page := 1
+	pageStr := r.URL.Query().Get("page")
+	if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+		page = p
+	}
+	offset := (page - 1) * limit
+
+	rows, err := db.Query("SELECT id, username, email, mobile FROM New LIMIT? OFFSET?", limit, offset)
 	if err != nil {
 		render.RenderTemplateWithData(w, "Home.html", map[string]any{"Error": "Error fetching users"})
 		return
@@ -196,7 +208,16 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		users = append(users, u)
 	}
-	render.RenderTemplateWithData(w, "Home.html", map[string]any{"Users": users})
+
+	var total int
+	db.QueryRow("SELECT COUNT(*) FROM New").Scan(&total)
+	totalPages := (total + limit - 1) / limit
+
+	render.RenderTemplateWithData(w, "Home.html", EditPageData{
+		Users:      users,
+		Page:       page,
+		TotalPages: totalPages,
+	})
 }
 
 func EditHandler(w http.ResponseWriter, r *http.Request) {
