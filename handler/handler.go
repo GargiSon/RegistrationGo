@@ -86,6 +86,28 @@ func init() {
 	}
 }
 
+func setFlashMessage(w http.ResponseWriter, message string) {
+	http.SetCookie(w, &http.Cookie{
+		Name:  "flash",
+		Value: message,
+		Path:  "/",
+	})
+}
+
+func getFlashMessage(w http.ResponseWriter, r *http.Request) string {
+	cookie, err := r.Cookie("flash")
+	if err != nil {
+		return ""
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:   "flash",
+		Value:  "",
+		Path:   "/",
+		MaxAge: -1,
+	})
+	return cookie.Value
+}
+
 func getCountriesFromDB() ([]string, error) {
 	rows, err := db.Query("SELECT name FROM Countries")
 	if err != nil {
@@ -174,6 +196,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 			})
 			return
 		}
+		setFlashMessage(w, "User successfully registered!")
 		http.Redirect(w, r, "/home", http.StatusSeeOther)
 		return
 	}
@@ -192,7 +215,7 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	offset := (page - 1) * limit
 
-	rows, err := db.Query("SELECT id, username, email, mobile FROM New LIMIT ? OFFSET ?", limit, offset)
+	rows, err := db.Query("SELECT id, username, email, mobile FROM New ORDER BY id DESC LIMIT ? OFFSET ?", limit, offset)
 	if err != nil {
 		render.RenderTemplateWithData(w, "Home.html", EditPageData{Error: "Error fetching users"})
 		return
@@ -213,10 +236,13 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 	db.QueryRow("SELECT COUNT(*) FROM New").Scan(&total)
 	totalPages := (total + limit - 1) / limit
 
+	flash := getFlashMessage(w, r)
+
 	render.RenderTemplateWithData(w, "Home.html", EditPageData{
 		Users:      users,
 		Page:       page,
 		TotalPages: totalPages,
+		Error:      flash,
 	})
 }
 
@@ -276,23 +302,29 @@ func UpdateHandler(w http.ResponseWriter, r *http.Request) {
 		// Validate mobile format
 		match, err := regexp.MatchString(`^(\+\d{1,3})?\d{10}$`, mobile)
 		if err != nil || !match {
-			render.RenderTemplateWithData(w, "Home.html", EditPageData{Error: "Invalid mobile format"})
+			setFlashMessage(w, "Invalid mobile format")
+			http.Redirect(w, r, "/home", http.StatusSeeOther)
 			return
 		}
 
 		//First changing dob from string to time format
 		dob, err := time.Parse("2006-01-02", dobStr)
 		if err != nil || dob.After(time.Now()) {
-			render.RenderTemplateWithData(w, "Home.html", EditPageData{Error: "Invalid DOB"})
+			setFlashMessage(w, "Invalid DOB")
+			http.Redirect(w, r, "/home", http.StatusSeeOther)
 			return
 		}
+
+		setFlashMessage(w, "Updated Successfully")
 
 		_, err = db.Exec(`UPDATE New SET username=?, mobile=?, address=?, gender=?, sports=?, dob=?, country=? WHERE id=?`,
 			username, mobile, address, gender, sports, dob, country, id)
 		if err != nil {
-			render.RenderTemplateWithData(w, "Home.html", EditPageData{Error: "Update failed: " + err.Error()})
+			setFlashMessage(w, "Update failed: "+err.Error())
+			http.Redirect(w, r, "/home", http.StatusSeeOther)
 			return
 		}
+		setFlashMessage(w, "User successfully updated!")
 		http.Redirect(w, r, "/home", http.StatusSeeOther)
 	}
 }
@@ -302,9 +334,11 @@ func DeleteHandler(w http.ResponseWriter, r *http.Request) {
 		id := r.FormValue("id")
 		_, err := db.Exec("DELETE FROM New WHERE id = ?", id)
 		if err != nil {
-			render.RenderTemplateWithData(w, "Home.html", EditPageData{Error: "Error deleting user"})
+			setFlashMessage(w, "Error deleting user")
+			http.Redirect(w, r, "/home", http.StatusSeeOther)
 			return
 		}
+		setFlashMessage(w, "User deleted!")
 		http.Redirect(w, r, "/home", http.StatusSeeOther)
 	}
 }
