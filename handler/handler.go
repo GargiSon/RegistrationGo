@@ -107,8 +107,8 @@ func getCountriesFromDB() ([]string, error) {
 func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	countries, err := getCountriesFromDB()
 	if err != nil {
-		render.RenderTemplateWithData(w, "Registration.html", map[string]any{
-			"Error": "Error fetching countries: " + err.Error(),
+		render.RenderTemplateWithData(w, "Registration.html", EditPageData{
+			Error: "Error fetching countries: " + err.Error(),
 		})
 		return
 	}
@@ -129,9 +129,9 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 		//Same password
 		if password != confirm {
-			render.RenderTemplateWithData(w, "Registration.html", map[string]any{
-				"Error":     "Passwords do not match",
-				"Countries": countries,
+			render.RenderTemplateWithData(w, "Registration.html", EditPageData{
+				Error:     "Passwords do not match",
+				Countries: countries,
 			})
 			return
 		}
@@ -139,18 +139,18 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		//First changing dob from string to time format, then checking
 		dob, err := time.Parse("2006-01-02", dobStr)
 		if err != nil || dob.After(time.Now()) {
-			render.RenderTemplateWithData(w, "Registration.html", map[string]any{
-				"Error":     "Invalid or future DOB",
-				"Countries": countries,
+			render.RenderTemplateWithData(w, "Registration.html", EditPageData{
+				Error:     "Invalid or future DOB",
+				Countries: countries,
 			})
 			return
 		}
 		//Mobile number constraint
 		match, err := regexp.MatchString(`^(\+\d{1,3})?\d{10}$`, mobile)
 		if err != nil || !match {
-			render.RenderTemplateWithData(w, "Registration.html", map[string]any{
-				"Error":     "Invalid mobile number format",
-				"Countries": countries,
+			render.RenderTemplateWithData(w, "Registration.html", EditPageData{
+				Error:     "Invalid mobile number format",
+				Countries: countries,
 			})
 			return
 		}
@@ -158,9 +158,9 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		//Hash password
 		hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost) //securely hash users password, default cost value is 10, but values like12, 14 are more secure but slow, and hashed password is in slice byte format
 		if err != nil {
-			render.RenderTemplateWithData(w, "Registration.html", map[string]any{
-				"Error":     "Password hashing failed",
-				"Countries": countries,
+			render.RenderTemplateWithData(w, "Registration.html", EditPageData{
+				Error:     "Password hashing failed",
+				Countries: countries,
 			})
 			return
 		}
@@ -168,9 +168,9 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		_, err = db.Exec("INSERT INTO New(username, password, email, mobile, address, gender, sports, dob, country) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", username, hashed, email, mobile, address, gender, joinedSports, dob, country)
 
 		if err != nil {
-			render.RenderTemplateWithData(w, "Registration.html", map[string]any{
-				"Error":     "Database error: " + err.Error(),
-				"Countries": countries,
+			render.RenderTemplateWithData(w, "Registration.html", EditPageData{
+				Error:     "Database error: " + err.Error(),
+				Countries: countries,
 			})
 			return
 		}
@@ -192,9 +192,9 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	offset := (page - 1) * limit
 
-	rows, err := db.Query("SELECT id, username, email, mobile FROM New LIMIT? OFFSET?", limit, offset)
+	rows, err := db.Query("SELECT id, username, email, mobile FROM New LIMIT ? OFFSET ?", limit, offset)
 	if err != nil {
-		render.RenderTemplateWithData(w, "Home.html", map[string]any{"Error": "Error fetching users"})
+		render.RenderTemplateWithData(w, "Home.html", EditPageData{Error: "Error fetching users"})
 		return
 	}
 	defer rows.Close()
@@ -203,7 +203,7 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var u User
 		if err := rows.Scan(&u.ID, &u.Username, &u.Email, &u.Mobile); err != nil {
-			render.RenderTemplateWithData(w, "Home.html", map[string]any{"Error": "Error scanning user"})
+			render.RenderTemplateWithData(w, "Home.html", EditPageData{Error: "Error scanning user"})
 			return
 		}
 		users = append(users, u)
@@ -223,7 +223,7 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 func EditHandler(w http.ResponseWriter, r *http.Request) {
 	id := r.FormValue("id")
 	if id == "" {
-		render.RenderTemplateWithData(w, "Home.html", map[string]any{"Error": "Missing user ID"})
+		render.RenderTemplateWithData(w, "Home.html", EditPageData{Error: "Missing user ID"})
 		return
 	}
 
@@ -232,12 +232,13 @@ func EditHandler(w http.ResponseWriter, r *http.Request) {
 		Scan(&user.ID, &user.Username, &user.Email, &user.Mobile, &user.Address, &user.Gender, &user.Sports, &user.DOB, &user.Country)
 
 	if err != nil {
-		render.RenderTemplateWithData(w, "Home.html", map[string]any{"Error": "User not found"})
+		render.RenderTemplateWithData(w, "Home.html", EditPageData{Error: "User not found"})
 		return
 	}
 
 	countries, _ := getCountriesFromDB()
 
+	// Convert sports (comma-separated string) to map for checkbox logic
 	sportsMap := make(map[string]bool)
 	for _, sport := range strings.Split(user.Sports, ",") {
 		sport = strings.TrimSpace(sport)
@@ -275,21 +276,21 @@ func UpdateHandler(w http.ResponseWriter, r *http.Request) {
 		// Validate mobile format
 		match, err := regexp.MatchString(`^(\+\d{1,3})?\d{10}$`, mobile)
 		if err != nil || !match {
-			render.RenderTemplateWithData(w, "Home.html", map[string]any{"Error": "Invalid mobile format"})
+			render.RenderTemplateWithData(w, "Home.html", EditPageData{Error: "Invalid mobile format"})
 			return
 		}
 
 		//First changing dob from string to time format
 		dob, err := time.Parse("2006-01-02", dobStr)
 		if err != nil || dob.After(time.Now()) {
-			render.RenderTemplateWithData(w, "Home.html", map[string]any{"Error": "Invalid DOB"})
+			render.RenderTemplateWithData(w, "Home.html", EditPageData{Error: "Invalid DOB"})
 			return
 		}
 
 		_, err = db.Exec(`UPDATE New SET username=?, mobile=?, address=?, gender=?, sports=?, dob=?, country=? WHERE id=?`,
 			username, mobile, address, gender, sports, dob, country, id)
 		if err != nil {
-			render.RenderTemplateWithData(w, "Home.html", map[string]any{"Error": "Update failed: " + err.Error()})
+			render.RenderTemplateWithData(w, "Home.html", EditPageData{Error: "Update failed: " + err.Error()})
 			return
 		}
 		http.Redirect(w, r, "/home", http.StatusSeeOther)
@@ -301,7 +302,7 @@ func DeleteHandler(w http.ResponseWriter, r *http.Request) {
 		id := r.FormValue("id")
 		_, err := db.Exec("DELETE FROM New WHERE id = ?", id)
 		if err != nil {
-			render.RenderTemplateWithData(w, "Home.html", map[string]any{"Error": "Error deleting user"})
+			render.RenderTemplateWithData(w, "Home.html", EditPageData{Error: "Error deleting user"})
 			return
 		}
 		http.Redirect(w, r, "/home", http.StatusSeeOther)
