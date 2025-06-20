@@ -66,11 +66,22 @@ func init() {
 		name TEXT NOT NULL
 	)`
 
+	createAdminTable := `
+	CREATE TABLE IF NOT EXISTS Admins(
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		email TEXT NOT NULL UNIQUE,
+		password TEXT NOT NULL
+	)`
+
 	if _, err = db.Exec(createTable); err != nil { //returns res, err but res not used here
 		log.Println("Error") //this stops the program immediately, when an error occurs
 	}
 
 	if _, err = db.Exec(createCountryTable); err != nil {
+		log.Println("Error")
+	}
+
+	if _, err = db.Exec(createAdminTable); err != nil {
 		log.Println("Error")
 	}
 
@@ -85,6 +96,13 @@ func init() {
 			log.Println("Error")
 		}
 	}
+
+	var adminCount int
+	_ = db.QueryRow("SELECT COUNT(*) FROM Admins").Scan(&adminCount)
+	if adminCount == 0 {
+		hashed, _ := bcrypt.GenerateFromPassword([]byte("admin123"), bcrypt.DefaultCost)
+		_, _ = db.Exec("INSERT INTO Admins(email, password) VALUES (?, ?)", "admin@example.com", hashed)
+	}
 }
 
 func setFlashMessage(w http.ResponseWriter, message string) {
@@ -98,7 +116,6 @@ func setFlashMessage(w http.ResponseWriter, message string) {
 func getFlashMessage(w http.ResponseWriter, r *http.Request) string {
 	cookie, err := r.Cookie("flash")
 	if err != nil {
-		return ""
 	}
 	http.SetCookie(w, &http.Cookie{
 		Name:   "flash",
@@ -125,6 +142,80 @@ func getCountriesFromDB() ([]string, error) {
 		countries = append(countries, name)
 	}
 	return countries, nil
+}
+
+func LoginHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		render.RenderTemplateWithData(w, "Login.html", EditPageData{
+			Error: "",
+		})
+		return
+	}
+	if r.Method == http.MethodPost {
+		email := r.FormValue("email")
+		password := r.FormValue("password")
+
+		var storedHash string
+		err := db.QueryRow("SELECT password FROM Admins WHERE email = ?", email).Scan(&storedHash)
+		if err != nil {
+			setFlashMessage(w, "Invalid email or password")
+			http.Redirect(w, r, "/", http.StatusSeeOther)
+			return
+		}
+		if bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(password)) != nil {
+			render.RenderTemplateWithData(w, "Login.html", EditPageData{
+				Error: "Invalid email or password",
+			})
+			return
+		}
+		http.SetCookie(w, &http.Cookie{
+			Name:  "admin_logged_in",
+			Value: "true",
+			Path:  "/",
+		})
+		http.Redirect(w, r, "/home", http.StatusSeeOther)
+	}
+}
+
+func LogoutHandler(w http.ResponseWriter, r *http.Request) {
+	http.SetCookie(w, &http.Cookie{
+		Name:   "admin_logged_in",
+		Value:  "",
+		Path:   "/",
+		MaxAge: -1,
+	})
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+func ForgotPasswordHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		render.RenderTemplateWithData(w, "Forgot.html", EditPageData{
+			Error: "",
+			// "Info": "",
+		})
+		return
+	}
+
+	if r.Method == http.MethodPost {
+		email := r.FormValue("email")
+		var exists bool
+		err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM Admins WHERE email = ?)", email).Scan(&exists)
+		if err != nil || !exists {
+			setFlashMessage(w, "Email not Found")
+			http.Redirect(w, r, "/forgot", http.StatusSeeOther)
+			return
+		}
+		newHash, _ := bcrypt.GenerateFromPassword([]byte("admin123"), bcrypt.DefaultCost)
+		_, err = db.Exec("UPDATE Admins SET password=? WHERE email=?", newHash, email)
+		if err != nil {
+			setFlashMessage(w, "Failes to reset password")
+			http.Redirect(w, r, "/forgot", http.StatusSeeOther)
+			return
+		}
+		render.RenderTemplateWithData(w, "Forgot.html", EditPageData{
+			// Info: "Password reset to 'admin123'.Please login and change it later.",
+		})
+	}
 }
 
 func RegisterHandler(w http.ResponseWriter, r *http.Request) {
