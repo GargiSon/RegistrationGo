@@ -2,7 +2,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Forgot Password</title>
+    <title>Reset Password</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -38,7 +38,7 @@
             margin-bottom: 5px;
         }
 
-        input[type="email"], input[type="submit"] {
+        input[type="password"], input[type="submit"] {
             padding: 10px;
             width: 100%;
             box-sizing: border-box;
@@ -72,15 +72,23 @@
 </head>
 <body>
     <div class="form-container">
-        <h2>Forgot Password</h2>
-        <form action="/forgot" method="POST">
+        <h2>Reset Password</h2>
+        <form action="/reset" method="POST">
+            <input type="hidden" name="email" value="{{.Email}}">
+            <input type="hidden" name="ts" value="{{.TS}}">
+            <input type="hidden" name="token" value="{{.Token}}">
+
             <table>
                 <tr>
-                    <td><label for="email">Enter your registered admin email <span style="color:red;">*</span></label></td>
-                    <td><input type="email" name="email" placeholder="Enter your email" required></td>
+                    <td><label for="new_password">Enter New Password <span style="color:red;">*</span></label></td>
+                    <td><input type="password" name="password" placeholder="New password" required></td>
                 </tr>
                 <tr>
-                    <td colspan="2"><input type="submit" value="Send Reset Link"></td>
+                    <td><label for="confirm_password">Confirm New Password <span style="color:red;">*</span></label></td>
+                    <td><input type="password" name="confirm" placeholder="Confirm password" required></td>
+                </tr>
+                <tr>
+                    <td colspan="2"><input type="submit" value="Reset Password"></td>
                 </tr>
             </table>
 

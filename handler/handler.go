@@ -1,10 +1,15 @@
 package handler
 
 import (
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
+	"fmt"
 	"log"
 	"mysqliteapp/render"
 	"net/http"
+	"net/smtp"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -37,6 +42,10 @@ type EditPageData struct {
 	Users      []User
 	Page       int
 	TotalPages int
+	Info       string
+	Email      string
+	Ts         string
+	Token      string
 }
 
 func init() {
@@ -67,7 +76,7 @@ func init() {
 	)`
 
 	createAdminTable := `
-	CREATE TABLE IF NOT EXISTS Admins(
+	CREATE TABLE IF NOT EXISTS Admin(
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		email TEXT NOT NULL UNIQUE,
 		password TEXT NOT NULL
@@ -98,12 +107,21 @@ func init() {
 	}
 
 	var adminCount int
-	_ = db.QueryRow("SELECT COUNT(*) FROM Admins").Scan(&adminCount)
+	_ = db.QueryRow("SELECT COUNT(*) FROM Admin").Scan(&adminCount)
 	if adminCount == 0 {
-		hashed, _ := bcrypt.GenerateFromPassword([]byte("admin123"), bcrypt.DefaultCost)
-		_, _ = db.Exec("INSERT INTO Admins(email, password) VALUES (?, ?)", "admin@example.com", hashed)
+		hashed, _ := bcrypt.GenerateFromPassword([]byte("admin1001"), bcrypt.DefaultCost)
+		_, _ = db.Exec("INSERT INTO Admin(email, password) VALUES (?, ?)", "farziemail@yopmail.com", hashed)
 	}
 }
+
+const resetsecret = "hubjinkom"
+
+const (
+	smtpHost     = "smtp.yopmail.com"
+	smtpPort     = "587"
+	smtpEmail    = "farziemail@yopmail.com"
+	smtpPassword = "admin1001"
+)
 
 func setFlashMessage(w http.ResponseWriter, message string) {
 	http.SetCookie(w, &http.Cookie{
@@ -116,6 +134,7 @@ func setFlashMessage(w http.ResponseWriter, message string) {
 func getFlashMessage(w http.ResponseWriter, r *http.Request) string {
 	cookie, err := r.Cookie("flash")
 	if err != nil {
+		return ""
 	}
 	http.SetCookie(w, &http.Cookie{
 		Name:   "flash",
@@ -144,6 +163,18 @@ func getCountriesFromDB() ([]string, error) {
 	return countries, nil
 }
 
+func sendResetEmail(toEmail, resetLink string) error {
+	auth := smtp.PlainAuth("", smtpEmail, smtpPassword, smtpHost)
+
+	subject := "Subject: Reset Your Admin Password\n"
+	body := fmt.Sprintf("To reset your password, click the link below:\n\n%s", resetLink)
+
+	msg := []byte(subject + "\n" + body)
+
+	err := smtp.SendMail(smtpHost+":"+smtpPort, auth, smtpEmail, []string{toEmail}, msg)
+	return err
+}
+
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		render.RenderTemplateWithData(w, "Login.html", EditPageData{
@@ -156,7 +187,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		password := r.FormValue("password")
 
 		var storedHash string
-		err := db.QueryRow("SELECT password FROM Admins WHERE email = ?", email).Scan(&storedHash)
+		err := db.QueryRow("SELECT password FROM Admin WHERE email = ?", email).Scan(&storedHash)
 		if err != nil {
 			setFlashMessage(w, "Invalid email or password")
 			http.Redirect(w, r, "/", http.StatusSeeOther)
@@ -191,7 +222,7 @@ func ForgotPasswordHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		render.RenderTemplateWithData(w, "Forgot.html", EditPageData{
 			Error: "",
-			// "Info": "",
+			Info:  getFlashMessage(w, r),
 		})
 		return
 	}
@@ -199,23 +230,27 @@ func ForgotPasswordHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		email := r.FormValue("email")
 		var exists bool
-		err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM Admins WHERE email = ?)", email).Scan(&exists)
+		err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM Admin WHERE email = ?)", email).Scan(&exists)
 		if err != nil || !exists {
 			setFlashMessage(w, "Email not Found")
 			http.Redirect(w, r, "/forgot", http.StatusSeeOther)
 			return
 		}
-		newHash, _ := bcrypt.GenerateFromPassword([]byte("admin123"), bcrypt.DefaultCost)
-		_, err = db.Exec("UPDATE Admins SET password=? WHERE email=?", newHash, email)
-		if err != nil {
-			setFlashMessage(w, "Failes to reset password")
-			http.Redirect(w, r, "/forgot", http.StatusSeeOther)
-			return
+
+		ts := fmt.Sprint(time.Now().Unix())
+		hash := sha256.Sum256([]byte(email + ts + resetsecret))
+		token := hex.EncodeToString(hash[:])
+
+		link := fmt.Sprintf("http://localhost:8080/reset?email=%s&ts=%s&token=%s", url.QueryEscape(email), ts, token)
+		if err := sendResetEmail(email, link); err != nil {
+			log.Println("Failed to send email:", err)
+			setFlashMessage(w, "Failed to send reset link. Try again.")
+		} else {
+			setFlashMessage(w, "Reset link sent! Check your email.")
 		}
-		render.RenderTemplateWithData(w, "Forgot.html", EditPageData{
-			// Info: "Password reset to 'admin123'.Please login and change it later.",
-		})
+		http.Redirect(w, r, "/forgot", http.StatusSeeOther)
 	}
+	render.RenderTemplateWithData(w, "forgot.html", nil)
 }
 
 func RegisterHandler(w http.ResponseWriter, r *http.Request) {
@@ -330,6 +365,59 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	render.RenderTemplateWithData(w, "Registration.html", EditPageData{
 		Countries: countries,
 		Title:     "Add User",
+	})
+}
+
+func ResetHandler(w http.ResponseWriter, r *http.Request) {
+	email := r.URL.Query().Get("email")
+	ts := r.URL.Query().Get("ts")
+	token := r.URL.Query().Get("token")
+
+	expectedHash := sha256.Sum256([]byte(email + ts + resetsecret))
+	expectedToken := hex.EncodeToString(expectedHash[:])
+
+	if token != expectedToken {
+		render.RenderTemplateWithData(w, "Reset.html", EditPageData{
+			Error: "Invalid or tampered reset link",
+		})
+		return
+	}
+
+	tsInt, err := strconv.ParseInt(ts, 10, 64)
+	if err != nil || time.Now().Unix()-tsInt > 15*60 {
+		render.RenderTemplateWithData(w, "Reset.html", EditPageData{
+			Error: "Reset link has expired.",
+		})
+		return
+	}
+
+	if r.Method == http.MethodPost {
+		newPass := r.FormValue("password")
+		confirm := r.FormValue("confirm")
+
+		if newPass != confirm {
+			render.RenderTemplateWithData(w, "Reset.html", EditPageData{
+				Error: "Passwords donot match.",
+			})
+			return
+		}
+
+		hashed, _ := bcrypt.GenerateFromPassword([]byte(newPass), bcrypt.DefaultCost)
+		_, err := db.Exec("Update Admin SET password=? WHERE email = ?", hashed, email)
+
+		if err != nil {
+			render.RenderTemplateWithData(w, "Reset.html", EditPageData{
+				Error: "Failed to update password",
+			})
+			return
+		}
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	render.RenderTemplateWithData(w, "Reset.html", EditPageData{
+		Email: email,
+		Ts:    ts,
+		Token: token,
 	})
 }
 

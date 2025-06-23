@@ -10,7 +10,8 @@ func main() {
 	http.HandleFunc("/", handler.LoginHandler)
 	http.HandleFunc("/login", handler.LoginHandler)
 	http.HandleFunc("/logout", handler.LogoutHandler)
-	http.HandleFunc("/forgot-password", handler.ForgotPasswordHandler)
+	http.HandleFunc("/forgot", handler.ForgotPasswordHandler)
+	http.HandleFunc("/reset", handler.ResetHandler)
 
 	http.HandleFunc("/register", handler.RegisterHandler)
 	http.HandleFunc("/home", handler.HomeHandler)
