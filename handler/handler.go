@@ -8,6 +8,7 @@ import (
 	"log"
 	"mysqliteapp/render"
 	"net/http"
+	"net/smtp"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -75,7 +76,7 @@ func init() {
 	)`
 
 	createAdminTable := `
-	CREATE TABLE IF NOT EXISTS Admin(
+	CREATE TABLE IF NOT EXISTS AdminNew(
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		email TEXT NOT NULL UNIQUE,
 		password TEXT NOT NULL
@@ -106,10 +107,10 @@ func init() {
 	}
 
 	var adminCount int
-	_ = db.QueryRow("SELECT COUNT(*) FROM Admin").Scan(&adminCount)
+	_ = db.QueryRow("SELECT COUNT(*) FROM AdminNew").Scan(&adminCount)
 	if adminCount == 0 {
 		hashed, _ := bcrypt.GenerateFromPassword([]byte("admin1001"), bcrypt.DefaultCost)
-		_, _ = db.Exec("INSERT INTO Admin(email, password) VALUES (?, ?)", "farziemail@yopmail.com", hashed)
+		_, _ = db.Exec("INSERT INTO AdminNew(email, password) VALUES (?, ?)", "#email", hashed)
 	}
 }
 
@@ -156,10 +157,28 @@ func getCountriesFromDB() ([]string, error) {
 }
 
 func sendResetEmail(toEmail, resetLink string) error {
-	fmt.Println("Simulating email send...")
-	fmt.Println("TO:", toEmail)
-	fmt.Println("Reset Link:", resetLink)
-	return nil
+	auth := smtp.PlainAuth(
+		"",
+		"#email",
+		"#App Password",
+		"smtp.gmail.com",
+	)
+
+	subject := "Subject: Password Reset Link\n"
+	headers := "MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n"
+	body := fmt.Sprintf(`<p>Click the link below to reset your password:</p><a href="%s">%s</a>`, resetLink, resetLink)
+
+	msg := []byte(subject + headers + body)
+
+	err := smtp.SendMail(
+		"smtp.gmail.com:587",
+		auth,
+		"#email",
+		[]string{toEmail},
+		msg,
+	)
+
+	return err
 }
 
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
@@ -174,7 +193,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		password := r.FormValue("password")
 
 		var storedHash string
-		err := db.QueryRow("SELECT password FROM Admin WHERE email = ?", email).Scan(&storedHash)
+		err := db.QueryRow("SELECT password FROM AdminNew WHERE email = ?", email).Scan(&storedHash)
 		if err != nil {
 			setFlashMessage(w, "Invalid email or password")
 			http.Redirect(w, r, "/", http.StatusSeeOther)
@@ -217,7 +236,7 @@ func ForgotPasswordHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		email := r.FormValue("email")
 		var exists bool
-		err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM Admin WHERE email = ?)", email).Scan(&exists)
+		err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM AdminNew WHERE email = ?)", email).Scan(&exists)
 		if err != nil || !exists {
 			setFlashMessage(w, "Email not Found")
 			http.Redirect(w, r, "/forgot", http.StatusSeeOther)
@@ -394,7 +413,7 @@ func ResetHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		hashed, _ := bcrypt.GenerateFromPassword([]byte(newPass), bcrypt.DefaultCost)
-		_, err := db.Exec("UPDATE Admin SET password = ? WHERE email = ?", hashed, email)
+		_, err := db.Exec("UPDATE AdminNew SET password = ? WHERE email = ?", hashed, email)
 		if err != nil {
 			render.RenderTemplateWithData(w, "Reset.html", EditPageData{
 				Error: "Failed to update password",
