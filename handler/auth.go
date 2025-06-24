@@ -25,7 +25,22 @@ func sendResetEmail(toEmail, resetLink string) error {
 
 	subject := "Subject: Password Reset Link\n"
 	headers := "MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n"
-	body := fmt.Sprintf(`<p>Click the link below to reset your password:</p><a href="%s">%s</a>`, resetLink, resetLink)
+	body := fmt.Sprintf(`
+	<!DOCTYPE html>
+	<html>
+	<body style="font-family: Arial, sans-serif; line-height: 1.6;">
+		<p>Hello,</p>
+		<p>Click the link below to reset your password:</p>
+		<p><a href="%s" style="background-color: #007BFF; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px;">Reset Password</a></p>
+		<p>Or copy and paste this URL into your browser:</p>
+		<p>%s</p>
+		<br>
+		<p>If you didn’t request this, please ignore this email.</p>
+		<p>Thanks,<br>Your Team</p>
+	</body>
+	</html>
+	`, resetLink, resetLink)
+
 	msg := []byte(subject + headers + body)
 
 	return smtp.SendMail(
