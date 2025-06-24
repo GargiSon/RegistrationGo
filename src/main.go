@@ -7,6 +7,8 @@ import (
 )
 
 func main() {
+	handler.InitDB()
+
 	http.HandleFunc("/", handler.LoginHandler)
 	http.HandleFunc("/login", handler.LoginHandler)
 	http.HandleFunc("/logout", handler.LogoutHandler)
