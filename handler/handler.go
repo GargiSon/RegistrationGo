@@ -10,11 +10,13 @@ import (
 	"net/http"
 	"net/smtp"
 	"net/url"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/joho/godotenv"
 	"golang.org/x/crypto/bcrypt"
 	_ "modernc.org/sqlite"
 )
@@ -49,6 +51,8 @@ type EditPageData struct {
 }
 
 func init() {
+	_ = godotenv.Load()
+
 	var err error
 	db, err = sql.Open("sqlite", "./New.db") //driver name, datasource name
 	if err != nil {
@@ -110,7 +114,7 @@ func init() {
 	_ = db.QueryRow("SELECT COUNT(*) FROM AdminNew").Scan(&adminCount)
 	if adminCount == 0 {
 		hashed, _ := bcrypt.GenerateFromPassword([]byte("admin1001"), bcrypt.DefaultCost)
-		_, _ = db.Exec("INSERT INTO AdminNew(email, password) VALUES (?, ?)", "#email", hashed)
+		_, _ = db.Exec("INSERT INTO AdminNew(email, password) VALUES (?, ?)", "gargi.soni@loginradius.com", hashed)
 	}
 }
 
@@ -157,28 +161,22 @@ func getCountriesFromDB() ([]string, error) {
 }
 
 func sendResetEmail(toEmail, resetLink string) error {
-	auth := smtp.PlainAuth(
-		"",
-		"#email",
-		"#App Password",
-		"smtp.gmail.com",
-	)
+	email := os.Getenv("SMTP_EMAIL")
+	password := os.Getenv("SMTP_PASSWORD")
+	auth := smtp.PlainAuth("", email, password, "smtp.gmail.com")
 
 	subject := "Subject: Password Reset Link\n"
 	headers := "MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n"
 	body := fmt.Sprintf(`<p>Click the link below to reset your password:</p><a href="%s">%s</a>`, resetLink, resetLink)
-
 	msg := []byte(subject + headers + body)
 
-	err := smtp.SendMail(
+	return smtp.SendMail(
 		"smtp.gmail.com:587",
 		auth,
-		"#email",
+		email,
 		[]string{toEmail},
 		msg,
 	)
-
-	return err
 }
 
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
