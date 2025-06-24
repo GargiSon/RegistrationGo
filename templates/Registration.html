@@ -61,7 +61,7 @@
     {{if .Error}}
       <p style="color:red;">{{.Error}}</p>
     {{end}}
-    <form action="/register" method="POST">
+    <form action="/register" enctype="multipart/form-data" method="POST">
       <table>
         <tr>
           <td><label for="username">Enter your name <span class="required-star">*</span></label></td>
@@ -96,11 +96,16 @@
         </tr>
 
         <tr>
+          <td><label>Upload Image</label></td>
+          <td><input type="file" name="image" accept="image/*"></td>
+        </tr>
+
+        <tr>
           <td><label>Select your gender <span class="required-star">*</span></label></td>
           <td>
             <div class="inline-options">
-              <label><input type="radio" name="gender" value="male" {{if eq .User.Gender "male"}}checked{{end}} required /> Male</label>
-              <label><input type="radio" name="gender" value="female" {{if eq .User.Gender "female"}}checked{{end}} /> Female</label>
+              <label><input type="radio" name="gender" value="male" {{if eq .User.Gender "male" }}checked{{end}} required /> Male</label>
+              <label><input type="radio" name="gender" value="female" {{if eq .User.Gender "female" }}checked{{end}} /> Female</label>
             </div>
           </td>
         </tr>

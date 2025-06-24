@@ -3,8 +3,10 @@ package handler
 import (
 	"crypto/sha256"
 	"database/sql"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"log"
 	"mysqliteapp/render"
 	"net/http"
@@ -24,15 +26,17 @@ import (
 var db *sql.DB
 
 type User struct {
-	ID       int
-	Username string
-	Email    string
-	Mobile   string
-	Address  string
-	Gender   string
-	Sports   string
-	DOB      string
-	Country  string
+	ID          int
+	Username    string
+	Email       string
+	Mobile      string
+	Address     string
+	Gender      string
+	Sports      string
+	DOB         string
+	Country     string
+	image       []byte
+	ImageBase64 string
 }
 
 type EditPageData struct {
@@ -71,6 +75,7 @@ func init() {
 		sports TEXT NOT NULL,
 		dob TEXT NOT NULL,
 		country TEXT NOT NULL
+		image BLOB
 	);`
 
 	createCountryTable := `
@@ -291,6 +296,24 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 			Country:  country,
 		}
 
+		//image
+		file, _, err := r.FormFile("image")
+		if err != nil {
+			render.RenderTemplateWithData(w, "Registration.html", EditPageData{
+				Error: "Error in image uploading",
+			})
+			return
+		}
+		defer file.Close()
+
+		imageData, err := io.ReadAll(file)
+		if err != nil {
+			render.RenderTemplateWithData(w, "Registration.html", EditPageData{
+				Error: "Error in image uploading",
+			})
+			return
+		}
+
 		sportsMap := make(map[string]bool)
 		for _, s := range sports {
 			sportsMap[s] = true
@@ -342,7 +365,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		_, err = db.Exec("INSERT INTO New(username, password, email, mobile, address, gender, sports, dob, country) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", username, hashed, email, mobile, address, gender, joinedSports, dob, country)
+		_, err = db.Exec("INSERT INTO New(username, password, email, mobile, address, gender, sports, dob, country, image) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", username, hashed, email, mobile, address, gender, joinedSports, dob, country, imageData)
 
 		if err != nil {
 			errMsg := err.Error()
@@ -480,13 +503,21 @@ func EditHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//Fetching and displaying image
+	var imageBytes []byte
 	var user User
-	err := db.QueryRow("SELECT id, username, email, mobile, address, gender, sports, dob, country FROM New WHERE id = ?", id).
-		Scan(&user.ID, &user.Username, &user.Email, &user.Mobile, &user.Address, &user.Gender, &user.Sports, &user.DOB, &user.Country)
+	err := db.QueryRow("SELECT id, username, email, mobile, address, gender, sports, dob, country, image FROM New WHERE id = ?", id).Scan(&user.ID, &user.Username, &user.Email, &user.Mobile, &user.Address, &user.Gender, &user.Sports, &user.DOB, &user.Country, &imageBytes)
+
+	user.image = imageBytes
 
 	if err != nil {
 		render.RenderTemplateWithData(w, "Home.html", EditPageData{Error: "User not found"})
 		return
+	}
+
+	// Convert image bytes to base64
+	if len(imageBytes) > 0 {
+		user.ImageBase64 = base64.StdEncoding.EncodeToString(imageBytes)
 	}
 
 	countries, _ := getCountriesFromDB()
@@ -542,10 +573,21 @@ func UpdateHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		setFlashMessage(w, "Updated Successfully")
+		file, _, err := r.FormFile("image")
+		var imageData []byte
+		if err == nil {
+			defer file.Close()
+			imageData, _ = io.ReadAll(file)
+		}
 
-		_, err = db.Exec(`UPDATE New SET username=?, mobile=?, address=?, gender=?, sports=?, dob=?, country=? WHERE id=?`,
-			username, mobile, address, gender, sports, dob, country, id)
+		setFlashMessage(w, "Updated Successfully")
+		if len(imageData) > 0 {
+			_, err = db.Exec(`UPDATE New SET username=?, mobile=?, address=?, gender=?, sports=?, dob=?, country=?, image=? WHERE id=?`, username, mobile, address, gender, sports, dob, country, imageData, id)
+		} else {
+			_, err = db.Exec(`UPDATE New SET username=?, mobile=?, address=?, gender=?, sports=?, dob=?, country=? WHERE id=?`,
+				username, mobile, address, gender, sports, dob, country, id)
+		}
+
 		if err != nil {
 			setFlashMessage(w, "Update failed: "+err.Error())
 			http.Redirect(w, r, "/home", http.StatusSeeOther)
