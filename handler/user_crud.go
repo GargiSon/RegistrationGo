@@ -203,6 +203,7 @@ func UpdateHandler(w http.ResponseWriter, r *http.Request) {
 		dobStr := r.FormValue("dob")
 		country := r.FormValue("country")
 		sportsSlice := r.Form["sports"]
+		removeImage := r.FormValue("remove_image") == "1"
 
 		sports := strings.Join(sportsSlice, ",")
 
@@ -224,19 +225,29 @@ func UpdateHandler(w http.ResponseWriter, r *http.Request) {
 
 		file, _, err := r.FormFile("image")
 		var imageData []byte
-		if err == nil {
+		hasImageUpload := (err == nil)
+
+		if hasImageUpload {
 			defer file.Close()
 			imageData, _ = io.ReadAll(file)
 		}
 
+		var query string
+		var args []interface{}
+
 		setFlashMessage(w, "Updated Successfully")
-		if len(imageData) > 0 {
-			_, err = DB.Exec(`UPDATE New SET username=?, mobile=?, address=?, gender=?, sports=?, dob=?, country=?, image=? WHERE id=?`, username, mobile, address, gender, sports, dob, country, imageData, id)
+		if hasImageUpload {
+			query = `UPDATE New SET username=?, mobile=?, address=?, gender=?, sports=?, dob=?, country=?, image=? WHERE id=?`
+			args = []interface{}{username, mobile, address, gender, sports, dob, country, imageData, id}
+		} else if removeImage {
+			query = `UPDATE New SET username=?, mobile=?, address=?, gender=?, sports=?, dob=?, country=?, image=NULL WHERE id=?`
+			args = []interface{}{username, mobile, address, gender, sports, dob, country, id}
 		} else {
-			_, err = DB.Exec(`UPDATE New SET username=?, mobile=?, address=?, gender=?, sports=?, dob=?, country=? WHERE id=?`,
-				username, mobile, address, gender, sports, dob, country, id)
+			query = `UPDATE New SET username=?, mobile=?, address=?, gender=?, sports=?, dob=?, country=? WHERE id=?`
+			args = []interface{}{username, mobile, address, gender, sports, dob, country, id}
 		}
 
+		_, err = DB.Exec(query, args...)
 		if err != nil {
 			setFlashMessage(w, "Update failed: "+err.Error())
 			http.Redirect(w, r, "/home", http.StatusSeeOther)

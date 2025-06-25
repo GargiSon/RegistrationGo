@@ -53,6 +53,10 @@
         border: 2px solid #000000;
         cursor: pointer;
       }
+      .remove_image{
+        width: 18px;
+        height: 18px;
+      }
 
     </style>
   </head>
@@ -94,6 +98,13 @@
                 <p>No image uploaded</p>
               {{end}}
             </td>
+            </tr>
+
+            <tr>
+              <td><label for="remove_image">Remove Image</label></td>
+              <td>
+                <label><input type="checkbox" class="remove_image" name="remove_image" value="1"></label>
+              </td>
             </tr>
 
             <tr>
