@@ -50,6 +50,10 @@
             background-color: #7aaee6;
             color: white;
         }
+        .sort-form{
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
@@ -60,6 +64,23 @@
     {{end}}
     <a href="/register"><button>Add New User</button></a>
     <a href="/"><button>Logout</button></a>
+        
+    <form method="get" action="/home" class="sort-form">
+        <label>Sort by:
+            <select name="field" onchange="this.form.submit()">
+                <option value="id" {{if eq .SortField "id" }}selected{{end}}>ID</option>
+                <option value="username" {{if eq .SortField "username" }}selected{{end}}>Username</option>
+                <option value="email" {{if eq .SortField "email" }}selected{{end}}>Email</option>
+            </select>
+        </label>
+
+        <label>Order:
+            <select name="order" onchange="this.form.submit()">
+                <option value="asc" {{if eq .SortOrder "asc" }}selected{{end}}>Ascending</option>
+                <option value="desc" {{if eq .SortOrder "desc" }}selected{{end}}>Descending</option>
+            </select>
+        </label>
+    </form>
 
     <table>
         <tr>
@@ -69,13 +90,7 @@
             <th>Mobile</th>
             <th>Actions</th>
         </tr> 
-        <form method="get" action="/home">
-        <select name="sort" onchange="this.form.submit()">
-            <option value="desc" {{if eq .Sort "desc" }}selected{{end}}>Newest First</option>
-            <option value="asc" {{if eq .Sort "asc" }}selected{{end}}>Oldest First</option>
-        </select>
 
-        </form>
         {{range .Users}}
         <tr>
             <td>{{.ID}}</td>
@@ -99,15 +114,15 @@
     {{if gt .TotalPages 1}}
     <div class="pagination">
         {{if gt .Page 1}}
-        <a href="/home?page={{sub .Page 1}}&sort={{.Sort}}">Previous</a>
+        <a href="/home?page={{sub .Page 1}}&field={{.SortField}}&order={{.SortOrder}}">Previous</a>
         {{end}}
 
         {{range $i := seq 1 .TotalPages}}
-        <a href="/home?page={{$i}}&sort={{$.Sort}}" class="{{if eq $.Page $i}}active{{end}}">{{$i}}</a>
+        <a href="/home?page={{$i}}&field={{$.SortField}}&order={{$.SortOrder}}" class="{{if eq $.Page $i}}active{{end}}">{{$i}}</a>
         {{end}}
 
         {{if lt .Page .TotalPages}}
-        <a href="/home?page={{add .Page 1}}&sort={{.Sort}}">Next</a>
+        <a href="/home?page={{add .Page 1}}&field={{.SortField}}&order={{.SortOrder}}">Next</a>
         {{end}}
     </div>
     {{end}}

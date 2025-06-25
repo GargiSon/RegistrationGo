@@ -12,28 +12,37 @@ import (
 func HomeHandler(w http.ResponseWriter, r *http.Request) {
 	const limit = 5
 	page := 1
-	sortOrder := "DESC"
 
+	//Getting query parameters
 	pageStr := r.URL.Query().Get("page")
-	sort := r.URL.Query().Get("sort")
+	sortField := r.URL.Query().Get("field")
+	sortOrder := r.URL.Query().Get("order")
 
 	if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
 		page = p
 	}
 
-	if sort == "asc" {
-		sortOrder = "ASC"
-	} else {
-		sortOrder = "DESC"
+	switch sortField {
+	case "username", "email", "id":
+	default:
+		sortField = "id"
+	}
+
+	switch sortOrder {
+	case "asc", "desc":
+	default:
+		sortOrder = "desc"
 	}
 
 	offset := (page - 1) * limit
 
-	query := fmt.Sprintf("SELECT id, username, email, mobile FROM New ORDER BY id %s LIMIT ? OFFSET ?", sortOrder)
+	query := fmt.Sprintf("SELECT id, username, email, mobile FROM New ORDER BY %s %s LIMIT ? OFFSET ?", sortField, sortOrder)
 
 	rows, err := DB.Query(query, limit, offset)
 	if err != nil {
-		render.RenderTemplateWithData(w, "Home.html", EditPageData{Error: "Error fetching users"})
+		render.RenderTemplateWithData(w, "Home.html", EditPageData{
+			Error: "Error fetching users",
+		})
 		return
 	}
 	defer rows.Close()
@@ -42,14 +51,28 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var u User
 		if err := rows.Scan(&u.ID, &u.Username, &u.Email, &u.Mobile); err != nil {
-			render.RenderTemplateWithData(w, "Home.html", EditPageData{Error: "Error scanning user"})
+			render.RenderTemplateWithData(w, "Home.html", EditPageData{
+				Error:      "Error scanning user",
+				Page:       page,
+				SortField:  sortField,
+				SortOrder:  sortOrder,
+				TotalPages: 0,
+			})
 			return
 		}
 		users = append(users, u)
 	}
 
 	var total int
-	DB.QueryRow("SELECT COUNT(*) FROM New").Scan(&total)
+	if err := DB.QueryRow("SELECT COUNT(*) FROM New").Scan(&total); err != nil {
+		render.RenderTemplateWithData(w, "Home.html", EditPageData{
+			Error:      "Error counting users",
+			Page:       page,
+			SortField:  sortField,
+			SortOrder:  sortOrder,
+			TotalPages: 0,
+		})
+	}
 	totalPages := (total + limit - 1) / limit
 
 	flash := getFlashMessage(w, r)
@@ -60,6 +83,7 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 		TotalPages: totalPages,
 		Error:      flash,
 		Title:      "User Listing",
-		Sort:       sort,
+		SortField:  sortField,
+		SortOrder:  sortOrder,
 	})
 }

@@ -27,5 +27,6 @@ type EditPageData struct {
 	Email      string
 	Ts         string
 	Token      string
-	Sort       string
+	SortField  string
+	SortOrder  string
 }
