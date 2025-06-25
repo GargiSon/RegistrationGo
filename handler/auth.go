@@ -13,8 +13,11 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gorilla/sessions"
 	"golang.org/x/crypto/bcrypt"
 )
+
+var store = sessions.NewCookieStore([]byte("super-secret-session-key"))
 
 const resetsecret = "hubjinkom"
 
@@ -54,53 +57,53 @@ func sendResetEmail(toEmail, resetLink string) error {
 
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
+		render.RenderTemplateWithData(w, "Login.html", EditPageData{})
+		return
+	}
+
+	email := r.FormValue("email")
+	password := r.FormValue("password")
+
+	var storedHash string
+	err := DB.QueryRow("SELECT password FROM AdminNew WHERE email = ?", email).Scan(&storedHash)
+	if err != nil {
 		render.RenderTemplateWithData(w, "Login.html", EditPageData{
-			Error: "",
+			Error: "Invalid email or password",
 		})
 		return
 	}
-	if r.Method == http.MethodPost {
-		email := r.FormValue("email")
-		password := r.FormValue("password")
 
-		var storedHash string
-		err := DB.QueryRow("SELECT password FROM AdminNew WHERE email = ?", email).Scan(&storedHash)
-		if err != nil {
-			setFlashMessage(w, "Invalid email or password")
-			http.Redirect(w, r, "/", http.StatusSeeOther)
-			return
-		}
-		if bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(password)) != nil {
-			render.RenderTemplateWithData(w, "Login.html", EditPageData{
-				Error: "Invalid email or password",
-			})
-			return
-		}
-		http.SetCookie(w, &http.Cookie{
-			Name:  "admin_logged_in",
-			Value: "true",
-			Path:  "/",
+	if bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(password)) != nil {
+		render.RenderTemplateWithData(w, "Login.html", EditPageData{
+			Error: "Invalid email or password",
 		})
-		http.Redirect(w, r, "/home", http.StatusSeeOther)
+		return
 	}
+
+	session, _ := store.Get(r, "session")
+	session.Values["authenticated"] = true
+	session.Values["email"] = email
+	err = session.Save(r, w)
+	if err != nil {
+		render.RenderTemplateWithData(w, "Login.html", EditPageData{
+			Error: "Failed to start session",
+		})
+		return
+	}
+	http.Redirect(w, r, "/home", http.StatusSeeOther)
 }
 
 func LogoutHandler(w http.ResponseWriter, r *http.Request) {
-	http.SetCookie(w, &http.Cookie{
-		Name:   "admin_logged_in",
-		Value:  "",
-		Path:   "/",
-		MaxAge: -1,
-	})
+	session, _ := store.Get(r, "session")
+	session.Options.MaxAge = -1 //Expire
+	session.Save(r, w)
+
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
 func ForgotPasswordHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
-		render.RenderTemplateWithData(w, "Forgot.html", EditPageData{
-			Error: "",
-			Info:  getFlashMessage(w, r),
-		})
+		render.RenderTemplateWithData(w, "Forgot.html", EditPageData{Info: getFlashMessage(w, r)})
 		return
 	}
 
@@ -119,6 +122,7 @@ func ForgotPasswordHandler(w http.ResponseWriter, r *http.Request) {
 		token := hex.EncodeToString(hash[:])
 
 		link := fmt.Sprintf("http://localhost:8080/reset?email=%s&ts=%s&token=%s", url.QueryEscape(email), ts, token)
+
 		if err := sendResetEmail(email, link); err != nil {
 			log.Println("Failed to send email:", err)
 			setFlashMessage(w, "Failed to send reset link. Try again.")
@@ -131,17 +135,9 @@ func ForgotPasswordHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func ResetHandler(w http.ResponseWriter, r *http.Request) {
-	var email, ts, token string
-
-	if r.Method == http.MethodGet {
-		email = r.URL.Query().Get("email")
-		ts = r.URL.Query().Get("ts")
-		token = r.URL.Query().Get("token")
-	} else if r.Method == http.MethodPost {
-		email = r.FormValue("email")
-		ts = r.FormValue("ts")
-		token = r.FormValue("token")
-	}
+	email := r.FormValue("email")
+	ts := r.FormValue("ts")
+	token := r.FormValue("token")
 
 	expectedHash := sha256.Sum256([]byte(email + ts + resetsecret))
 	expectedToken := hex.EncodeToString(expectedHash[:])
@@ -152,10 +148,11 @@ func ResetHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tsInt, err := strconv.ParseInt(ts, 10, 64)
-	if err != nil || time.Now().Unix()-tsInt > 15*60 {
+	if err != nil || time.Now().Unix()-tsInt > 900 {
 		http.Error(w, "Reset link has expired.", http.StatusUnauthorized)
 		return
 	}
+
 	if r.Method == http.MethodPost {
 		newPass := r.FormValue("password")
 		confirm := r.FormValue("confirm")

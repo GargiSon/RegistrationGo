@@ -13,6 +13,12 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 	const limit = 5
 	page := 1
 
+	session, _ := store.Get(r, "session")
+	if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
 	//Getting query parameters
 	pageStr := r.URL.Query().Get("page")
 	sortField := r.URL.Query().Get("field")
