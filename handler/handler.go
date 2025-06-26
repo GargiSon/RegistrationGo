@@ -18,6 +18,10 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
+	adminName := ""
+	if name, ok := session.Values["admin_name"].(string); ok {
+		adminName = name
+	}
 
 	//Getting query parameters
 	pageStr := r.URL.Query().Get("page")
@@ -91,5 +95,6 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 		Title:      "User Listing",
 		SortField:  sortField,
 		SortOrder:  sortOrder,
+		AdminName:  adminName,
 	})
 }

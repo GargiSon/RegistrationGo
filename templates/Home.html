@@ -8,36 +8,59 @@
             font-family: Arial, sans-serif;
             padding: 20px;
         }
+
+        .header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .header-bar .left-buttons {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-bar .logout-btn {
+            margin-right: 30px; /* little left from extreme right */
+        }
+
         table {
             width: 100%;
             border-collapse: separate;
             border-spacing: 0 10px;
         }
+
         th, td {
             padding: 12px 15px;
             text-align: left;
             background-color: #f9f9f9;
             border-bottom: 1px solid #ddd;
         }
+
         th {
             background-color: #f2f2f2;
         }
+
         input[type="submit"], button {
             padding: 6px 12px;
-            margin-right: 5px;
             cursor: pointer;
         }
-        .edit{
+
+        .edit {
             background-color: rgb(200, 245, 219);
         }
-        .delete{
+
+        .delete {
             background-color: rgb(233, 147, 147);
         }
+
         .pagination {
             margin-top: 20px;
-            margin-left: 40rem;
-            margin-bottom: 20px;
+            text-align: center;
         }
+
         .pagination a {
             padding: 6px 12px;
             margin-right: 5px;
@@ -46,25 +69,34 @@
             border: 1px solid #ccc;
             border-radius: 4px;
         }
+
         .pagination a.active {
             background-color: #7aaee6;
             color: white;
         }
-        .sort-form{
-            margin-top: 20px;
+
+        .sort-form {
             margin-bottom: 20px;
         }
     </style>
 </head>
 <body>
-    
+
     <h2>List Of Users</h2>
     {{if .Error}}
     <p style="color:red;">{{.Error}}</p>
     {{end}}
-    <a href="/register"><button>Add New User</button></a>
-    <a href="/"><button>Logout</button></a>
-        
+
+    <div class="header-bar">
+        <div class="left-buttons">
+            <strong>Welcome, {{.AdminName}}</strong>
+            <a href="/register"><button>Add New User</button></a>
+        </div>
+        <div class="logout-btn">
+            <a href="/"><button>Logout</button></a>
+        </div>
+    </div>
+
     <form method="get" action="/home" class="sort-form">
         <label>Sort by:
             <select name="field" onchange="this.form.submit()">
@@ -76,8 +108,8 @@
 
         <label>Order:
             <select name="order" onchange="this.form.submit()">
-                <option value="asc" {{if eq .SortOrder "asc" }}selected{{end}}>Ascending</option>
-                <option value="desc" {{if eq .SortOrder "desc" }}selected{{end}}>Descending</option>
+                <option value="asc" {{if eq .SortOrder "asc"}}selected{{end}}>Ascending</option>
+                <option value="desc" {{if eq .SortOrder "desc"}}selected{{end}}>Descending</option>
             </select>
         </label>
     </form>
@@ -89,12 +121,12 @@
             <th>Email</th>
             <th>Mobile</th>
             <th>Actions</th>
-        </tr> 
+        </tr>
 
         {{range .Users}}
         <tr>
             <td>{{.ID}}</td>
-            <td>{{.Username}}</td> 
+            <td>{{.Username}}</td>
             <td>{{.Email}}</td>
             <td>{{.Mobile}}</td>
             <td>

@@ -29,4 +29,5 @@ type EditPageData struct {
 	Token      string
 	SortField  string
 	SortOrder  string
+	AdminName  string
 }
